@@ -1,6 +1,6 @@
 # signumtte-workshop
 
-Proje indirildikten sonra Go Live'e basılması yeterlidir.
+Proje indirildikten sonra index.html içerisinde Go Live'e basılması yeterlidir.
 
 ***Sitenin Genel Görünümü:***
 
