@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+
+    <script src="https://unpkg.com/gojs/release/go-debug.js"></script>
+
+</head>
+
+<body>
+
+    <div id="allSampleContent" class="p-4 w-full">
+        <script id="code">
+            go.Shape.defineFigureGenerator("ExpandedLine", (shape, w, h) => {
+                return new go.Geometry()
+                    .add(new go.PathFigure(0, 0.25 * h, false)
+                        .add(new go.PathSegment(go.PathSegment.Line, .5 * w, 0.75 * h))
+                        .add(new go.PathSegment(go.PathSegment.Line, w, 0.25 * h)));
+            });
+
+            // use a sideways V figure instead of PlusLine in the TreeExpanderButton
+            go.Shape.defineFigureGenerator("CollapsedLine", (shape, w, h) => {
+                return new go.Geometry()
+                    .add(new go.PathFigure(0.25 * w, 0, false)
+                        .add(new go.PathSegment(go.PathSegment.Line, 0.75 * w, .5 * h))
+                        .add(new go.PathSegment(go.PathSegment.Line, 0.25 * w, h)));
+            });
+
+            var myDiagram = null;
+
+            async function init() {
+
+                const $ = go.GraphObject.make;  // for conciseness in defining templates
+
+                myDiagram =
+                    $(go.Diagram, "myDiagramDiv",
+                        {
+                            allowMove: false,
+                            allowCopy: false,
+                            allowDelete: false,
+                            allowHorizontalScroll: false,
+                            layout:
+                                $(go.TreeLayout,
+                                    {
+                                        alignment: go.TreeLayout.AlignmentStart,
+                                        angle: 0,
+                                        compaction: go.TreeLayout.CompactionNone,
+                                        layerSpacing: 16,
+                                        layerSpacingParentOverlap: 1,
+                                        nodeIndentPastParent: 1.0,
+                                        nodeSpacing: 0,
+                                        setsPortSpot: false,
+                                        setsChildPortSpot: false
+                                    })
+                        });
+
+
+                var cxElement = document.getElementById("contextMenu");
+
+                var mainContextMenu = $(go.HTMLInfo, {
+                    show: showContextMenu,
+                    hide: hideContextMenu
+                });
+
+                myDiagram.nodeTemplate =
+                    $(go.Node,
+                        {
+                            selectionAdorned: false,
+
+                            doubleClick: (e, node) => {
+                                var cmd = myDiagram.commandHandler;
+
+                                if (node.isTreeExpanded) {
+                                    if (!cmd.canCollapseTree(node)) return;
+                                } else {
+                                    if (!cmd.canExpandTree(node)) return;
+                                }
+                                e.handled = true;
+                                if (node.isTreeExpanded) {
+                                    cmd.collapseTree(node);
+                                } else {
+                                    cmd.expandTree(node);
+                                }
+
+                            }
+
+
+
+                        },
+                        { contextMenu: mainContextMenu },
+                        $("TreeExpanderButton",
+                            { // customize the button's appearance
+                                "_treeExpandedFigure": "ExpandedLine",
+                                "_treeCollapsedFigure": "CollapsedLine",
+                                "ButtonBorder.fill": "whitesmoke",
+                                "ButtonBorder.stroke": null,
+                                "_buttonFillOver": "rgba(0,128,255,0.25)",
+                                "_buttonStrokeOver": null
+                            }),
+                        $(go.Panel, "Horizontal",
+                            { position: new go.Point(18, 0) },
+                            new go.Binding("background", "isSelected", s => s ? "lightblue" : "white").ofObject(),
+                            $(go.Picture,
+                                {
+                                    width: 18, height: 18,
+                                    margin: new go.Margin(0, 4, 0, 0),
+                                    imageStretch: go.GraphObject.Uniform
+                                },
+                                new go.Binding("source", "isTreeExpanded", imageConverter).ofObject(),
+                                new go.Binding("source", "isTreeLeaf", imageConverter).ofObject()),
+                            $(go.TextBlock,
+                                { font: '9pt Verdana, sans-serif' },
+                                new go.Binding("text", "key"))
+                        )  // end Horizontal Panel
+                    );  // end Node
+
+
+                myDiagram.linkTemplate = $(go.Link);
+
+
+
+
+                let data = await fetch('server.js')
+                    .then(response => response.json())
+                    .then(data => data.data);
+
+                var nodeDataArray = [{ key: "Türkiye" }];
+                data.forEach(city => {
+                    var childdata = { ...city, key: city.il_adi, parent: "Türkiye" };
+                    nodeDataArray.push(childdata);
+                    city.ilceler.forEach(town => {
+                        var childdata = { ...town, key: town.ilce_adi, parent: city.il_adi };
+                        nodeDataArray.push(childdata);
+                    })
+                })
+
+                myDiagram.model = new go.TreeModel(nodeDataArray);
+                myDiagram.contextMenu = mainContextMenu;
+
+                cxElement.addEventListener("contextMenu", e => {
+                    e.preventDefault();
+                    return false;
+                }, false);
+
+
+                function showContextMenu(obj, diagram, tool) {
+                    var hasMenuItem = false;
+                    document.getElementById("population").style.display = "block";
+                    document.getElementById("region").style.display = "block";
+
+
+                    if (obj instanceof go.Node) {
+
+
+                        let Data = obj.data;
+
+                        if (Data[0] === Data.il_adi) {
+
+                            alert("İlçe Adı : " + Data.ilce_adi + "\nNüfus : " + Data.nufus + "\nErkek Nüfus : " + Data.erkek_nufus + "\nKadın Nüfus : " + Data.kadin_nufus + "\nYüzölçümü : " + Data.yuzolcumu)
+                        }
+
+                        else {
+                            alert("İl Adı : " + Data.il_adi + "\nNüfus : " + Data.nufus + "\nErkek Nüfus : " + Data.erkek_nufus + "\nKadın Nüfus : " + Data.kadin_nufus + "\nYüzölçümü : " + Data.yuzolcumu)
+                        }
+
+                    }
+
+
+
+
+                    if (hasMenuItem) {
+                        cxElement.classList.add("show-menu");
+                        var mousePt = diagram.lastInput.viewPoint;
+                        cxElement.style.left = mousePt.x + 5 + "px";
+                        cxElement.style.top = mousePt.y + "px";
+                    }
+                }
+
+
+                function hideContextMenu() {
+                    cxElement.classList.remove("show-menu");
+                }
+
+
+
+                // takes a property change on either isTreeLeaf or isTreeExpanded and selects the correct image to use
+                function imageConverter(prop, picture) {
+                    var node = picture.part;
+                    if (node.isTreeLeaf) {
+                        return;
+                    } else {
+                        if (node.isTreeExpanded) {
+                            return;
+                        } else {
+                            return;
+                        }
+                    }
+                }
+            }
+            window.addEventListener('DOMContentLoaded', init);
+        </script>
+
+        <div id="sample">
+            <div id="myDiagramDiv"
+                style="border: 1px solid black; width: 600px; height: 650px; position: relative; -webkit-tap-highlight-color: rgba(255, 255, 255, 0);">
+
+                <div style="position: absolute; overflow: auto; width: 298px; height: 498px; z-index: 1;">
+                    <div style="position: absolute; width: 1px; height: 9010px;">
+                    </div>
+                </div>
+            </div>
+            <div id="contextMenu" style="display: block; float: left;">
+                <div id="population" class="menu-item" style="display: block; color: slateblue;"></div>
+                <div id="region" class="menu-item" style="display: block;"></div>
+            </div>
+        </div>
+</body>
+
+</html>
